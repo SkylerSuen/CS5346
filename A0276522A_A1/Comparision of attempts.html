@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title>Comparision of attempts</title>
+		<script src="d3.min.js"></script>
+		<script src="d3-tip.js"></script>
+		<style>
+			.d3-tip {
+				white-space: pre-wrap;
+				font-family: Arial, sans-serif;
+				font-size: 20px;
+				line-height: 1.5;
+			}
+		
+			.tip {
+				background-color: #ffffff;
+				border: 1px solid #000000;
+				padding: 10px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<!-- <svg width="600" height="400"></svg> -->
+		<script>
+			// 测试数据
+			// const data = [{
+			// 		name: "A",
+			// 		value1: 10,
+			// 		value2: 20
+			// 	},
+			// 	{
+			// 		name: "B",
+			// 		value1: 20,
+			// 		value2: 30
+			// 	},
+			// 	{
+			// 		name: "C",
+			// 		value1: 30,
+			// 		value2: 25
+			// 	},
+			// 	{
+			// 		name: "D",
+			// 		value1: 15,
+			// 		value2: 35
+			// 	},
+			// 	{
+			// 		name: "E",
+			// 		value1: 25,
+			// 		value2: 15
+			// 	},
+			// ];
+
+
+			d3.csv("Fifa_WC_2022_Match_data.csv").then(function(datafirst) {
+				// 创建数据集
+
+				const keyword = "FRANCE";
+
+				// 使用 d3.filter() 方法过滤包含关键字的行
+				const filteredData = datafirst.filter(function(d) {
+
+					if (d["1"].includes(keyword)) {
+						return d["1"].includes(keyword);
+					}
+					if (d["2"].includes(keyword)) {
+						return d["2"].includes(keyword)
+					}
+				})
+
+				var ls = [];
+				for (var i = 0; i < filteredData.length; i++) {
+					var ll = {}
+					if (filteredData[i]["1"] == 'FRANCE') {
+						ll['name1'] = filteredData[i]["1"]
+						ll['Fgoals'] = filteredData[i]["1_attempts"] //法国对进球数
+						ll['poss1'] = filteredData[i]["1_poss"]
+
+						ll['name2'] = filteredData[i]["2"]
+						ll['Ogoals'] = filteredData[i]["2_attempts"] //其他国家对进球数
+						ll['poss2'] = filteredData[i]["2_poss"]
+
+						ll['date'] = filteredData[i]["date"] 
+					} else {
+						ll['name1'] = filteredData[i]["2"]
+						ll['Fgoals'] = filteredData[i]["2_attempts"] //法国对进球数
+						ll['poss1'] = filteredData[i]["2_poss"]
+
+						ll['name2'] = filteredData[i]["1"]
+						ll['Ogoals'] = filteredData[i]["1_attempts"] //其他国家对进球数
+						ll['poss2'] = filteredData[i]["1_poss"]
+						ll['date'] = filteredData[i]["date"] 
+					}
+					ll['Totalgoals'] = Number(ll['Fgoals']) + Number(ll['Ogoals'])
+					ll['group'] = filteredData[i]["group"]
+					ls.push(ll)
+				}
+
+				var data1 = ls;
+
+				console.log(data1)
+
+				// 图表尺寸
+				const margin = {
+					top: 20,
+					right: 20,
+					bottom: 30,
+					left: 40
+				};
+				const width = 1300 - margin.left - margin.right;
+				const height = 800 - margin.top - margin.bottom;
+
+				// x轴比例尺
+				const x = d3.scaleBand()
+					.range([50, width])
+					.padding(0.1)
+					.domain(data1.map(d => d.date)) //应该传入时间
+
+				// y轴比例尺
+				const y = d3.scaleLinear()
+					.domain([0, d3.max(data1, d => Math.max(Number(d.Fgoals) + 1, Number(d.Ogoals) + 1))])
+					.range([height-50, 100])
+
+				console.log(y.domain())
+				// x轴
+				const xAxis = g => g
+					.attr("transform", `translate(0,${height-50})`)
+					.call(d3.axisBottom(x));
+
+
+				const yAxis = d3.axisLeft(y).ticks(5);
+
+				// 创建svg元素
+				const svg = d3.select("body")
+					.append("svg")
+					// .append("width",1300)
+					// .append("width",800)
+					.attr("width", 1500)
+					.attr("height", height + margin.top + margin.bottom)
+
+
+
+				var g = svg.append("g")
+					.attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+				// 添加x轴
+				g.append("g")
+					.attr("id", "gaxis_x")
+					.call(xAxis);
+
+
+
+				// 添加y轴
+				g.append("g")
+					.attr("id", "gaxis_y")
+					.attr('transform', 'translate(50, 0)')
+					.call(yAxis);
+
+				// 定义动画变量
+				const anim = d3.transition()
+					.duration(1500)
+					.delay((d, i) => i * 100)
+
+
+				var textname = ["Team", "goals", "Poss", "Totalgoals"]
+
+				/*定义颜色比例尺*/
+				const colorScale = d3.scaleOrdinal()
+					.domain(textname)
+					.range(["black", "black", "rgb(44, 132, 101)", "black"]);
+
+
+				// /*添加提示框*/
+				var tip = d3.tip()
+					.attr('class', 'd3-tip')
+					.offset([50, 10])
+					.html(function(d) {
+						return "Team: " + d[0] +
+							"<br>attempts: " + d[1] + 
+							"<br>Possession: " + d[2]+"%";
+					})
+				svg.call(tip);
+				
+				// 将样式应用于工具提示
+				tip.attr('class', 'd3-tip tip');
+
+
+				// 添加法国柱子
+				g.selectAll(".value1")
+					.data(data1)
+					.join("rect")
+					.attr("class", "value1")
+					.attr("x", d => x(d.date) + x.bandwidth() / 6 - 5)
+					.attr("y", d => y(0))
+					.attr("width", x.bandwidth() / 6 * 2)
+					.attr("height", d => 0)
+					.attr("fill", "	#FF8000")
+					.transition(anim)
+					.attr("y", d => y(d.Fgoals))
+					.attr("height", d => height - y(d.Fgoals)-50)
+
+				// 添加法国灰色柱子
+				var frect = g.selectAll(".fgray")
+					.data(data1)
+					.join("rect")
+					.attr("class", "fgray")
+					.attr("x", d => x(d.date) + x.bandwidth() / 6 - 5)
+					.attr("y", y(0))
+					.attr("width", x.bandwidth() / 6 * 2)
+					.attr("height", 0)
+					.attr("fill", "#dddddd")
+					.lower()
+					.transition(anim)
+					.attr("y", d => 100)
+					.attr("height", d => height - 150)
+
+			d3.selectAll(".fgray")
+			.on("mousemove", function(d) {
+					var value = d3.select(this).data()[0]["Fgoals"]
+					if (value == '0') {
+							d3.select(this).style("fill", "steelblue")
+						temparray=[d["name1"], d['Fgoals'], d['poss1'], d['Totalgoals']]
+						tip.show(temparray)
+						tip.style('left', d3.event.pageX + 50 + 'px')
+							.style('top', (d3.event.pageY - 28) + 'px');
+						
+					}
+			
+					})
+				.on("mouseout", function(event, d) {
+					d3.select(this).style("fill","#dddddd")
+					tip.hide()
+			
+				})
+	
+
+
+
+				/*灰色柱子添加文字*/
+				g.selectAll(".ftext")
+					.data(data1)
+					.join("text")
+					.attr("class", "ftext")
+					.text(d => d.Fgoals)
+					.attr("x", d => x(d.date) + x.bandwidth() / 6 + 15)
+					.attr("y", height)
+					.style("opacity", 0)
+					.transition(anim)
+					.attr("y", d => 90)
+					.style("opacity", 1)
+				
+
+				/*交互*/
+				d3.selectAll(".value1").on("mousemove", function(d) {
+					d3.select(this).style("fill", "steelblue")
+						var temparray=[d["name1"], d['Fgoals'], d['poss1'], d['Totalgoals']]
+						tip.show(temparray)
+						tip.style('left', d3.event.pageX + 50 + 'px')
+							.style('top', (d3.event.pageY - 28) + 'px');
+					})
+					.on("mouseout", function(event, d) {
+						d3.select(this).style("fill", "#FF8000")
+					tip.hide()
+					})
+
+
+				var cityname = ["FRANCE", "AUSTRALIA", "DENMARK", "TUNISIA",
+					"POLAND", "ENGLAND", "MOROCCO", "ARGENTINA"
+				];
+
+				const color = d3.scaleOrdinal()
+					.domain(cityname)
+					.range(["#FF8000", "#44e064", "#00C957", "#6B8E23", "#00FF7F",
+						"#53e6ae", "#00C78C", "#32CD32"
+					]);
+
+
+				// 添加其他国家柱子
+				g.selectAll(".value2")
+					.data(data1)
+					.join("rect")
+					.attr("class", "value2")
+					.attr("x", d => x(d.date) + x.bandwidth() / 6 * 3 + 5)
+					.attr("y", d => y(0))
+					.attr("width", x.bandwidth() / 6 * 2)
+					.attr("height", d => 0)
+					.attr("fill", d => color(d.name2))
+					.transition(anim)
+					.attr("y", d => y(d.Ogoals))
+					.attr("height", d => height - y(d.Ogoals)-50)
+
+				/*交互*/
+				d3.selectAll(".value2")
+					.on("mousemove", function( d) {
+						d3.select(this).style("fill", "#ff223f")
+
+						var temparray=[d["name2"], d['Ogoals'], d['poss2'], d['Totalgoals']]
+						tip.show(temparray)
+						tip.style('left', d3.event.pageX + 50 + 'px')
+							.style('top', (d3.event.pageY - 28) + 'px');
+
+
+					})
+					.on("mouseout", function(d) {
+						var name = d3.select(this).data()[0]["name2"]
+						d3.select(this).style("fill", color(name))
+					tip.hide()
+					})
+
+
+				// 添加其他国家灰色柱子
+				var ogray = g.selectAll(".ogray")
+					.data(data1)
+					.join("rect")
+					.attr("class", "ogray")
+					.attr("x", d => x(d.date) + x.bandwidth() / 6 * 3 + 5)
+					.attr("y", y(0))
+					.attr("width", x.bandwidth() / 6 * 2)
+					.attr("height", 0)
+					.attr("fill", "#dddddd")
+					.lower()
+					.transition(anim)
+					.attr("y", d => 100)
+					.attr("height", d => height - 150)
+				d3.selectAll(".ogray")
+				.on("mousemove", function( d) {
+						var value = d3.select(this).data()[0]["Ogoals"]
+						if (value == '0') {
+								d3.select(this).style("fill", "#ff223f")
+							var temparray=[d["name2"], d['Ogoals'], d['poss2'], d['Totalgoals']]
+							tip.show(temparray)
+							tip.style('left', d3.event.pageX + 50 + 'px')
+								.style('top', (d3.event.pageY - 28) + 'px');
+							
+						}
+
+						})
+					.on("mouseout", function( d) {
+						d3.select(this).style("fill","#dddddd")
+					tip.hide()
+					})
+
+
+
+
+				g.selectAll(".otext")
+					.data(data1)
+					.join("text")
+					.attr("class", "otext")
+					.text(d => d.Ogoals)
+					.attr("x", d => x(d.date) + x.bandwidth() / 6 * 3 + 20)
+					.attr("y", height)
+					.style("opacity", 0)
+					.transition(anim)
+					.attr("y", d => 90)
+					.style("opacity", 1)
+
+
+				/*添加图例*/
+				var lengrect = svg.append("g")
+					.attr("transform", `translate(${width+50},50)`)
+					.selectAll("rect")
+					.data(cityname)
+					.enter()
+					.append("rect")
+					.attr('x', 0)
+					.attr("y", (d, i) => i * 40 + 20)
+					.attr("width", 40)
+					.attr("height", 20)
+					.style("fill", d => color(d))
+					.style("opacity", 0)
+
+
+				lengrect.transition(anim).style("opacity", 1)
+				svg.append("g")
+					.attr("transform", `translate(${width+50},50)`)
+					.selectAll("text")
+					.data(cityname)
+					.enter()
+					.append("text")
+					.attr('x', 50)
+					.attr("y", (d, i) => i * 40 + 35)
+					.text(d => d)
+					.style("fill", d => color(d))
+					.attr('text-anchor', 'start')
+					.style("opacity", 0)
+					.transition()
+					.duration(1000)
+					.delay((d, i) => i * 100)
+					.style("opacity", 1)
+
+				d3.selectAll("text").style("font-size", 20)
+				d3.select("#gaxis_x")
+					.selectAll("text")
+					.style("font-size", 18)
+					
+					
+			/*添加x y轴名字*/
+			
+			
+			/*
+			font-size: 24px;
+			    font-family: fantasy;
+			    text-anchor: middle;
+			}
+			*/	
+		   /*给图表添加名字*/
+		   
+		   svg.append("text")
+		   .text("Comparison of Attempts (France and Opposing nations)")
+		   .attr('x', width/2)
+		   .attr('y', 50)
+		   .attr('text-anchor', 'middle')
+		   .style('font-size', '30px')
+		   .style("font-family","fantasy")
+		   .style("opacity", 0.1)
+		   .transition(anim)
+		   .style("opacity", 1)
+		   
+				g.append('text')
+					.attr('text-anchor', 'middle')
+					.attr("transform", "rotate(-90,0,0)") // 将文本元素旋转-90度
+					.attr('x', -height/2)
+					.attr('y', 0)
+					.style('font-size', '20px')
+					.text('Number of Attempts')
+					.style("font-weight", "bold")
+				
+				g.append('text')
+					.attr('x', width /2)
+					.attr('y', height+15 )
+					.attr('text-anchor', 'middle')
+					.style('font-size', '20px')//修改字体大小
+					.text('Match Date')
+					.style("font-weight", "bold")//加粗
+			})
+		</script>
+	</body>
+
+</html>

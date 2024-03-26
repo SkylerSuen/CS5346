@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<script src="d3.min.js"></script>
+		<script src="d3-tip.js"></script>
+		<style>
+			.d3-tip {
+				white-space: pre-wrap;
+				font-family: Arial, sans-serif;
+				font-size: 20px;
+				line-height: 1.5;
+			}
+
+			.tip {
+				background-color: #ffffff;
+				border: 1px solid #000000;
+				padding: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="loading-indicator">
+			<div></div>
+			<div></div>
+			<div></div>
+			<div></div>
+		</div>
+		<script>
+			d3.csv("Fifa_WC_2022_Match_data.csv").then(function(data) {
+				// 创建数据集
+
+				const keyword = "FRANCE";
+
+				// 使用 d3.filter() 方法过滤包含关键字的行
+				const filteredData = data.filter(function(d) {
+
+					if (d["1"].includes(keyword)) {
+						return d["1"].includes(keyword);
+					}
+					if (d["2"].includes(keyword)) {
+						return d["2"].includes(keyword)
+					}
+				})
+
+				var ls = [];
+				for (var i = 0; i < filteredData.length; i++) {
+					var ll = {}
+					if (filteredData[i]["1"] == 'FRANCE') {
+						ll['name1'] = filteredData[i]["1"]
+						ll['Fgoals'] = filteredData[i]["1_goals"] //法国对进球数
+						ll['poss1'] = filteredData[i]["1_poss"]
+
+						ll['name2'] = filteredData[i]["2"]
+						ll['Ogoals'] = filteredData[i]["2_goals"] //其他国家对进球数
+						ll['poss2'] = filteredData[i]["2_poss"]
+
+						ll['date'] = filteredData[i]["date"]
+					} else {
+						ll['name1'] = filteredData[i]["2"]
+						ll['Fgoals'] = filteredData[i]["2_goals"] //法国对进球数
+						ll['poss1'] = filteredData[i]["2_poss"]
+
+						ll['name2'] = filteredData[i]["1"]
+						ll['Ogoals'] = filteredData[i]["1_goals"] //其他国家对进球数
+						ll['poss2'] = filteredData[i]["1_poss"]
+						ll['date'] = filteredData[i]["date"]
+					}
+					ll['Total goals'] = Number(ll['Fgoals']) + Number(ll['Ogoals'])
+					ll['group'] = filteredData[i]["group"]
+					ls.push(ll)
+				}
+
+				var data1 = ls;
+				// console.log(data1)
+				const svg = d3.select("body")
+					.append("svg")
+					.attr("width", 1300)
+					.attr("height", 800)
+
+				const width = 1000,
+					height = 700;
+
+
+				const keys = ['Fgoals', 'Ogoals'];
+
+				const stack = d3.stack()
+					.keys(keys)
+					.order(d3.stackOrderNone)
+					.offset(d3.stackOffsetNone);
+
+				const series = stack(data1);
+				//   yScale
+
+				// console.log(series)
+				const yScale = d3.scaleBand()
+					.domain(data1.map(d => d.date)) //应该传入时间
+					.range([height, 50])
+					.padding(0.1);
+
+				const xScale = d3.scaleLinear()
+					.domain([0, d3.max(series, d => d3.max(d, d => d[1]))])
+					.range([50, width]);
+
+				var cityname = ["FRANCE", "AUSTRALIA", "DENMARK", "TUNISIA",
+					"POLAND", "ENGLAND", "MOROCCO", "ARGENTINA"
+				];
+				const color = d3.scaleOrdinal()
+					.domain(cityname)
+					.range(["steelblue", "#8fddb6", "#8fddb6", "#8fddb6", "#8fddb6", "#8fddb6", "#8fddb6", "#8fddb6"]);
+				// 				// console.log(color("FRANCE"))
+				const group = svg.append("g")
+					.attr("transform", `translate(${50},${0})`)
+					.selectAll('g')
+					.data(series)
+					.join('g')
+
+
+				var k = -1,
+					l = -1,
+					rectclass = -1;
+				const rect = group.selectAll('rect')
+					.data(d => d)
+					.join('rect')
+					.attr('y', d => yScale(d.data.date))
+					.attr('x', function(d) {
+						l++;
+						if (l % 7 == 2) {
+							return 60 //要改
+						}
+						return xScale(0)
+					})
+					.attr('height', yScale.bandwidth())
+					.attr('width', 0)
+					.attr('fill', function(d, i) {
+						k++;
+						return k > 6 ? color(d.data.name2) : color(d.data.name1);
+
+					})
+					.style("opacity", 0.8)
+					.attr("class", function(d, i) {
+						rectclass++;
+						return rectclass > 6 ? "Other" : "France";
+					})
+
+
+
+				var temp = -1,
+					falg = -1;
+				rect.transition()
+					.duration(1000)
+					.delay((d, i) => i * 100)
+					.attr('x', function(d) {
+						falg++
+						if (falg % 7 == 2) {
+							if (d[1] == 0)
+								return xScale(d[0]);
+							else
+								return xScale(d[0]) + 10
+						} else
+							return xScale(d[0])
+					})
+					.attr('width', function(d) {
+						temp++
+						if (temp % 7 == 2) {
+							if (d[1] == 0)
+								return 10;
+							else
+								return xScale(d[1]) - xScale(d[0]) - 10
+						} else if (temp % 7 == 5) {
+							if (d[0] != 0)
+								return 10
+							else
+								return xScale(d[1]) - xScale(d[0])
+						} else
+							return xScale(d[1]) - xScale(d[0])
+					});
+				/*添加文字*/
+				var g = -1,
+					p = -1;
+				group.selectAll('text')
+					.data(d => d)
+					.join('text')
+					.attr('y', d => yScale(d.data.date) + 50)
+					.attr('x', 50)
+					.style("opacity", 0.1)
+					.text(function(d) {
+						p++;
+						if (p > 6) {
+							return d.data.name2
+						}
+					})
+					.transition()
+					.duration(1000)
+					.delay((d, i) => i * 100)
+					.attr('x', function(d, i) {
+						g++;
+						if (g > 6) {
+							return xScale(d[1]) + 5
+						}
+					})
+					.style("opacity", 1)
+
+
+				// /*添加提示框*/
+				var tip = d3.tip()
+					.attr('class', 'd3-tip')
+					.offset([50, 10])
+					.html(function(d) {
+						return "Number of Goals: " + d[0] +
+							"<br>possession: " + d[1] +"%" + "<br>Total goals in this match: " + d[2];
+					})
+				svg.call(tip);
+
+				// 将样式应用于工具提示
+				tip.attr('class', 'd3-tip tip');
+
+
+				/*交互*/
+				rect.on("mousemove", function(d) {
+
+						d3.select(this).style("opacity", 1)
+
+						if (d3.select(this).attr("class") == "Other") {
+
+							var temparray = [d["data"]['Ogoals'], d["data"]['poss2'], d["data"]['Total goals']]
+							tip.show(temparray)
+							tip.style('left', d3.event.pageX + 50 + 'px')
+								.style('top', (d3.event.pageY - 28) + 'px');
+
+						} else {
+							var temparray = [d["data"]['Fgoals'], d["data"]['poss1'], d["data"]['Total goals']]
+							tip.show(temparray)
+							tip.style('left', d3.event.pageX + 50 + 'px')
+								.style('top', (d3.event.pageY - 28) + 'px');
+						}
+
+					})
+					.on("mouseout", function(event, d) {
+						d3.select(this)
+							.style("opacity", 0.8)
+						tip.hide(); // 隐藏工具提示
+					})
+
+
+				const yAxis = d3.axisLeft(yScale);
+
+				const xAxis = d3.axisBottom(xScale).ticks(5)
+
+				const xAxisGroup = svg.append('g')
+					.attr("id", "gaxis_x")
+					.attr('transform', `translate(50, ${height})`)
+					.call(xAxis)
+
+
+				d3.select("#gaxis_x")
+					.selectAll("text")
+					.style("font-size", 15)
+
+				const yAxisGroup = svg.append('g')
+					.attr("id", "gaxis_y")
+					.attr('transform', 'translate(100, 0)')
+					.call(yAxis);
+
+				d3.select("#gaxis_y")
+					.selectAll("text")
+					.style("font-size", 15)
+				svg.append('text')
+					.attr('x', width / 2)
+					.attr('y', 40)
+					.attr('text-anchor', 'start')
+					.style('font-size', '20px')
+					.text('Comparison of Goals (France and Opposing Nation)')
+					.style("font-size", 24)
+					.style("font-weight", "bold")
+
+				svg.append('text')
+					.attr('x', 80)
+					.attr('y', 40)
+					.attr('text-anchor', 'middle')
+					.style('font-size', '15px')
+					.text('Match Date');
+
+				svg.append('text')
+					.attr('x', width + 120)
+					.attr('y', height + 30)
+					.attr('text-anchor', 'middle')
+					.style('font-size', '15px')
+					.text(' Number of Goals');
+				var cityname = ["France", "Opposing Nation"];
+				/*添加图例*/
+				var lengrect = svg.append("g")
+					.attr("transform", `translate(${width/2},${height})`)
+					.selectAll("rect")
+					.data(cityname)
+					.enter()
+					.append("rect")
+					.attr('x', (d, i) => i * 200)
+					.attr("y", 70)
+					.attr("width", 40)
+					.attr("height", 20)
+					.style("fill", d => color(d))
+					.style("opacity", 0)
+
+
+				lengrect.transition()
+					.duration(1000)
+					.delay((d, i) => i * 100)
+					.style("opacity", 0.5)
+
+				svg.append("g")
+					.attr("transform", `translate(${width/2},${height})`)
+					.selectAll("text")
+					.data(cityname)
+					.enter()
+					.append("text")
+					.attr('x', (d, i) => i * 200 + 50)
+					.attr("y", 85)
+					.text(d => d)
+					.style("fill", "black")
+					.attr('text-anchor', 'start')
+					.style("opacity", 0)
+					.transition()
+					.duration(1000)
+					.delay((d, i) => i * 100)
+					.style("opacity", 1)
+
+			})
+		</script>
+	</body>
+</html>

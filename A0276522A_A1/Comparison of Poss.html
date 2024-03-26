@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title>Comparison of Possession (France and Opposing Nations)</title>
+		<script src="d3.min.js"></script>
+		<script src="d3-tip.js"></script>
+		<style>
+			.d3-tip {
+				white-space: pre-wrap;
+				font-family: Arial, sans-serif;
+				font-size: 20px;
+				line-height: 1.5;
+			}
+
+			.tip {
+				background-color: #ffffff;
+				border: 1px solid #000000;
+				padding: 10px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<script>
+			d3.csv("Fifa_WC_2022_Match_data.csv").then(function(datafirst) {
+				// 创建数据集
+
+				const keyword = "FRANCE";
+
+				// 使用 d3.filter() 方法过滤包含关键字的行
+				const filteredData = datafirst.filter(function(d) {
+
+					if (d["1"].includes(keyword)) {
+						return d["1"].includes(keyword);
+					}
+					if (d["2"].includes(keyword)) {
+						return d["2"].includes(keyword)
+					}
+				})
+
+				var tempdata = [];
+				for (var i = 0; i < filteredData.length; i++) {
+					var toal = {}
+					var value = []
+					var lf = {},
+						lo = {}
+					if (filteredData[i]["1"] == 'FRANCE') {
+						lf['name'] = filteredData[i]["1"]
+						lf['value'] = Number(filteredData[i]["1_poss"]) == 0 ? 0.02 : Number(filteredData[i][
+							"1_poss"
+						]) //法国对进球数
+						lf['poss'] = filteredData[i]["1_poss"]
+						lf['cengshu'] = "外层" + String(i + 1)
+
+
+
+						lo['name'] = filteredData[i]["2"]
+						lo['value'] = Number(filteredData[i]["2_poss"]) == 0 ? 0.02 : Number(filteredData[i][
+							"2_poss"
+						]) //其他国家对进球数
+						lo['poss'] = filteredData[i]["2_poss"]
+						lo['cengshu'] = "外层" + String(i + 1)
+
+
+						lf['total'] = Number(lf['value']) + Number(lo['value'])
+						lo['total'] = Number(lf['value']) + Number(lo['value'])
+
+
+						toal['date'] = filteredData[i]["date"]
+					} else {
+						lf['name'] = filteredData[i]["2"]
+						lf['value'] = Number(filteredData[i]["2_poss"]) == 0 ? 0.02 : Number(filteredData[i][
+							"2_poss"
+						]) //法国对进球数
+						lf['poss'] = filteredData[i]["2_poss"]
+						lf['cengshu'] = "外层" + String(i + 1)
+
+
+						lo['name'] = filteredData[i]["1"]
+						lo['value'] = filteredData[i]["1_poss"] == 0 ? 0.02 : Number(filteredData[i][
+							"1_poss"
+						]) //其他国家对进球数
+
+						lo['poss'] = filteredData[i]["1_poss"]
+						lo['cengshu'] = "外层" + String(i + 1)
+
+
+						lf['total'] = Number(lf['value']) + Number(lo['value'])
+						lo['total'] = Number(lf['value']) + Number(lo['value'])
+						toal['date'] = filteredData[i]["date"]
+					}
+
+					value.push(lf)
+					value.push(lo)
+					toal["values"] = value
+					tempdata.push(toal)
+				}
+				console.log(tempdata)
+				var data = tempdata;
+				var cityname = ["FRANCE", "AUSTRALIA", "DENMARK", "TUNISIA",
+					"POLAND", "ENGLAND", "MOROCCO", "ARGENTINA"
+				];
+				// 颜色比例尺
+				const color = d3.scaleOrdinal()
+					.domain(cityname)
+					.range(["#FF8000", "#44e064", "#00C957", "#6B8E23", "#00FF7F",
+						"#53e6ae", "#00C78C", "#32CD32"
+					]);
+
+
+
+				// 图形大小
+				const width = 1300;
+				const height = 800;
+				// const radius = Math.min(width, height) / 2 - 50;
+				const radius = 150;
+				// 内外半径比例尺
+				const innerRadius = radius - 40; //60
+				const outerRadius = radius - 15; //70
+
+
+				// console.log(radius)
+				// 创建SVG画布
+				const svg = d3.select("body")
+					.append("svg")
+					.attr("width", width)
+					.attr("height", height);
+
+				/*添加图表名字*/
+				svg.append("text")
+					.text("Comparison of Possession") //改这里修改你的图表名字
+					.attr('x', width / 4)
+					.attr('y', 50)
+					.attr('text-anchor', 'middle')
+					.style('font-size', '10px')
+					.style("font-family", "fantasy")
+					.style("opacity", 0.1)
+					.transition()
+					.duration(1500)
+					.style("opacity", 1)
+					.style('font-size', '30px')
+
+				// 创建7个弧形生成器
+				var arcarry = []
+				for (var i = 0; i < 7; i++) {
+					var arc = d3.arc()
+						.innerRadius(innerRadius + i * 40) //60
+						.outerRadius(outerRadius + i * 40); //70
+					arcarry.push(arc)
+
+				}
+
+				const scale = d3.scaleLinear()
+					.domain([0, 7])
+					.range([0, 2 * Math.PI]);
+				// 创建堆叠饼状图布局
+				const pie = d3.pie()
+					.value(d => d.value)
+					.sort(null)
+					.startAngle(0)
+					.endAngle(Math.PI / 2 * 3);
+
+
+
+				let pi = Math.PI;
+
+
+				// 绑定数据并创建外层饼图组
+				const outerPieGroup = svg.selectAll(".PieGroup")
+					.data(data)
+					.join("g")
+					.attr("class", "PieGroup")
+					.attr("transform", `translate(${width/2}, ${height/2})`);
+
+				// 创建外层饼图
+				outerPieGroup.selectAll(".outerSlice")
+					.data(d => pie(d.values))
+					.join("path")
+					.attr("class", d => d.data.cengshu)
+					.attr("fill", d => color(d.data.name))
+					.attr("opacity", 0.8)
+					.attr("stroke", "#000000")
+					.attr("stroke-width", 2)
+					.style("opacity", 0.3)
+					.transition()
+					.duration(2000)
+					.style("opacity", 0.8)
+					.attrTween("d", (d) => {
+						const start = {
+							// startAngle: pi * -0.5,
+							// endAngle: pi * -0.5
+							startAngle: 0,
+							endAngle: d.startAngle
+						};
+						constend = {
+							startAngle: d.startAngle,
+							endAngle: d.endAngle
+						};
+						const interpolate = d3.interpolate(start, constend);
+						return function(t) {
+							if (d.data.cengshu == "外层1")
+								return arcarry[0](interpolate(t))
+							else if (d.data.cengshu == "外层2")
+								return arcarry[1](interpolate(t))
+							else if (d.data.cengshu == "外层3")
+								return arcarry[2](interpolate(t))
+							else if (d.data.cengshu == "外层4")
+								return arcarry[3](interpolate(t))
+							else if (d.data.cengshu == "外层5")
+								return arcarry[4](interpolate(t))
+							else if (d.data.cengshu == "外层6")
+								return arcarry[5](interpolate(t))
+							else if (d.data.cengshu == "外层7")
+								return arcarry[6](interpolate(t))
+						};
+						// .attr("d", (d, i, j) => {
+						// 	if (d.data.cengshu == "外层1")
+						// 		return arcarry[0](d)
+						// 	else if (d.data.cengshu == "外层2")
+						// 		return arcarry[1](d)
+						// 	else if (d.data.cengshu == "外层3")
+						// 		return arcarry[2](d)
+						// 	else if (d.data.cengshu == "外层4")
+						// 		return arcarry[3](d)
+						// 	else if (d.data.cengshu == "外层5")
+						// 		return arcarry[4](d)
+						// 	else if (d.data.cengshu == "外层6")
+						// 		return arcarry[5](d)
+						// 	else if (d.data.cengshu == "外层7")
+						// 		return arcarry[6](d)
+						// })
+					})
+					.on("end", outerBindTooltip);
+
+
+				// /*添加提示框*/
+				var tip = d3.tip()
+					.attr('class', 'd3-tip')
+					.offset([50, 10])
+					.html(function(d) {
+						return "teamname: " + d.name +
+			
+							"<br>Possession: " + d.poss + "%" 
+	
+					})
+				svg.call(tip);
+
+				// 将样式应用于工具提示
+				tip.attr('class', 'd3-tip tip');
+
+				function outerBindTooltip(el) {
+					svg.selectAll(".PieGroup path").on("mouseenter", function(d) {
+							// d3.select(this);
+							var strnum = Number(d.data.cengshu.match(/\d+/)[0]) - 1
+
+							var outer = arcarry[strnum].outerRadius()()
+
+
+							d3.selectAll(".PieGroup path")
+								.style("opacity", 0.3)
+
+							var classname = d3.select(this)
+								.attr("class")
+							d3.selectAll("." + classname)
+								.style("opacity", 1)
+
+							d3.select(this)
+								.transition()
+								.attr("d", function(d) {
+									arcarry[strnum].outerRadius(outer + 5);
+									return arcarry[strnum](d);
+								});
+						})
+
+						.on("mousemove", function(d) {
+							temparray = d.data
+							tip.show(temparray)
+							tip.style('left', d3.event.pageX + 50 + 'px')
+								.style('top', (d3.event.pageY - 28) + 'px');
+						})
+						.on("mouseout", function(d) {
+							tip.hide()
+
+							d3.selectAll(".PieGroup path")
+								.style("opacity", 0.8)
+
+							var strnum = Number(d.data.cengshu.match(/\d+/)[0]) - 1
+							var outer = arcarry[strnum].outerRadius()()
+
+							d3.select(this)
+								.transition()
+								.attr("d", function(d) {
+									arcarry[strnum].outerRadius(outer - 5);
+									return arcarry[strnum](d);
+								});
+
+						});
+				}
+
+				/*添加时间*/
+				var arctext = svg.append("g")
+					.selectAll("g")
+					.data(data)
+					.enter()
+					.append("g")
+					.append("text")
+					.text(d => d.date)
+					.attr("x", width / 5 * 2)
+					.attr("y", function(d, i) {
+						return (i + 1) * 20 + 10;
+					})
+					.attr('text-anchor', 'start')
+					.style("opacity", 0)
+					.transition()
+					.duration(1500)
+					.delay((d, i) => i * 100) // 每个饼块的延迟时间
+					.attr("y", function(d, i) {
+						return (i + 1) * 40;
+					})
+					.attr("font-size", 20)
+					.style("opacity", 1)
+
+
+				const anim = d3.transition()
+					.duration(1500)
+					.delay((d, i) => i * 400)
+
+				/*添加图例*/
+				var lengrect = svg.append("g")
+					.attr("transform", `translate(${width/6*5},${50})`)
+					.selectAll("rect")
+					.data(cityname)
+					.enter()
+					.append("rect")
+					.attr('x', 0)
+					.attr("y", (d, i) => i * 40 + 20)
+					.attr("width", 40)
+					.attr("height", 20)
+					.style("fill", d => color(d))
+					.style("opacity", 0)
+				/*图例动画*/
+				lengrect.transition(anim)
+					.style("opacity", 1)
+				/*图例交互*/
+				lengrect.on("mousemove", function(d) {
+						var nametemp = d
+						d3.select(this)
+							.style("opacity", 1)
+
+						d3.selectAll(".PieGroup path")
+							.style("opacity", 0.3);
+						// 遍历矩形并高亮指定的矩形
+						d3.selectAll(".PieGroup path")
+							.filter(d => d.data.name === nametemp) // 选择name等于指定值的矩形
+							.style("opacity", 1);
+					})
+					.on("mouseout", function(d) {
+						d3.select(this)
+							.style("opacity", 0.6)
+
+						// 遍历矩形并高亮指定的矩形
+						d3.selectAll(".PieGroup path")
+							.style("opacity", 0.8);
+
+
+					})
+				/*图例文字*/
+				svg.append("g")
+					.attr("transform", `translate(${width/6*5},50)`)
+					.selectAll("text")
+					.data(cityname)
+					.enter()
+					.append("text")
+					.attr('x', 50)
+					.attr("y", (d, i) => i * 40 + 35)
+					.text(d => d)
+					.style("fill", d => color(d))
+					.attr('text-anchor', 'start')
+					.style("opacity", 0)
+					.transition()
+					.duration(1500)
+					.delay((d, i) => i * 100)
+					.style("opacity", 1)
+
+
+			})
+		</script>
+	</body>
+
+</html>
